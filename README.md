@@ -85,7 +85,7 @@ Edit `src/simulation/mockData.ts` and add an entry to `AGENT_SEEDS`:
 1. `src/types/agent.ts`: add the role to `AgentRole`. Add a department to `Department` if needed.
 2. `src/types/team.ts`: add the role to `ALL_ROLES`, `ROLE_TITLES` and `ROLE_COLORS`. Add the department to `DEPARTMENT_ORDER` and `DEPARTMENT_LABELS` if you created one.
 3. `src/simulation/workflows.ts`: add one or more stages owned by the new role in `STAGES` (and its `StageId` in `src/types/task.ts`). Use the new stages in a pipeline in `TASK_TEMPLATES`. Optionally add `BLOCKERS` and meeting roles in `MEETING_PLANS`.
-4. `src/simulation/layout.ts`: if the role needs its own room, add an `AreaId` in `types/agent.ts`, an entry in `AREAS` and `DESK_SLOTS`, and update `laneOf`/`planPath` in `navigation.ts` if the room opens onto a different corridor. Otherwise reuse an existing area.
+4. `src/simulation/layout.ts`: if the role needs its own room, add an `AreaId` in `types/agent.ts` and an entry in `AREAS` and `DESK_SLOTS`. Set `walls` (which sides get glass) and `door` (side `N` or `S`, x position, width). Walls are drawn from this data and agents are routed through the door automatically. Otherwise reuse an existing area.
 5. `src/simulation/mockData.ts`: add the agent to `AGENT_SEEDS`.
 6. Run `npm test` and `npm run dev`.
 
@@ -164,6 +164,10 @@ Notes for a live backend:
 - Agents only walk when you send `AGENT_MOVED`. The scene computes the route and animates it. Send `arrived: true` when the agent has reached the target (the simulation does this by watching the 3D position). A live backend should do the same after a suitable delay.
 - The initial team and tasks still come from `mockData.ts`. Make your agent ids match the ids you send, or replace the seed data.
 - The WebSocket reconnects automatically every 2 seconds. Only the receive side was exercised in tests, and the socket path has not been run against a real server yet.
+
+### Rooms, walls and doors
+
+Rooms are defined in `AREAS` (`src/simulation/layout.ts`). Each walled room has glass walls and one door that opens onto a corridor. Agents always walk corridor → door → inside the room, never through glass. To move or resize a door, change its `door` entry. The navigation test (`npm test`) checks that no route between any desk, seat or break spot crosses a wall.
 
 ## 5. Project layout
 

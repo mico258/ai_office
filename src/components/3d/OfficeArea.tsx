@@ -5,9 +5,9 @@ import { DESK_SLOTS, type AreaDef } from '../../simulation/layout';
 import { useAgentStore } from '../../stores/agentStore';
 import { Desk } from './Desk';
 import { Box } from './shared';
+import { RoomWalls } from './Walls';
 
 const FLOOR_BASE = new THREE.Color('#c7cfdd');
-const WALL_HEIGHT = 1.7;
 
 function hexTint(color: string): string {
   return `#${FLOOR_BASE.clone().lerp(new THREE.Color(color), 0.28).getHexString()}`;
@@ -47,12 +47,7 @@ export const OfficeArea = memo(function OfficeArea({ area }: OfficeAreaProps) {
       <Box position={[cx, 0.07, cz - depth / 2 + 0.05]} size={[width, 0.03, 0.1]} color={area.color} shadow={false} emissive={area.color} emissiveIntensity={0.4} />
       <Box position={[cx, 0.07, cz + depth / 2 - 0.05]} size={[width, 0.03, 0.1]} color={area.color} shadow={false} emissive={area.color} emissiveIntensity={0.4} />
 
-      {area.walls.includes('W') && (
-        <Box position={[cx - width / 2, WALL_HEIGHT / 2, cz]} size={[0.12, WALL_HEIGHT, depth]} color="#e8f0ff" opacity={0.22} shadow={false} roughness={0.2} />
-      )}
-      {area.walls.includes('E') && (
-        <Box position={[cx + width / 2, WALL_HEIGHT / 2, cz]} size={[0.12, WALL_HEIGHT, depth]} color="#e8f0ff" opacity={0.22} shadow={false} roughness={0.2} />
-      )}
+      <RoomWalls area={area} />
 
       {DESK_SLOTS[area.id].map((slot) => (
         <Desk key={`${slot[0]},${slot[1]}`} slot={slot} occupantId={occupants.get(`${slot[0]},${slot[1]}`)} />

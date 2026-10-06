@@ -3,6 +3,12 @@ import type { AreaId, Vec2 } from '../types/agent';
 export type Side = 'N' | 'S' | 'E' | 'W';
 export type Lane = 'TOP' | 'BOTTOM' | 'ANY';
 
+export interface DoorDef {
+  side: 'N' | 'S';
+  x: number;
+  width: number;
+}
+
 export interface AreaDef {
   id: AreaId;
   label: string;
@@ -11,6 +17,12 @@ export interface AreaDef {
   color: string;
   lane: Lane;
   walls: Side[];
+  door: DoorDef | null;
+}
+
+export interface WallRun {
+  from: Vec2;
+  to: Vec2;
 }
 
 export const WORLD = { width: 32, depth: 24 };
@@ -22,6 +34,9 @@ export const ENGINEERING_TOP = -0.5;
 export const ENGINEERING_BOTTOM = 5.5;
 export const ENGINEERING_MID_Z = 2.8;
 export const DESK_OFFSET_Z = 0.95;
+export const DOOR_WIDTH = 2.4;
+export const DOOR_INSET = 0.9;
+export const WALL_HEIGHT = 2;
 
 export const AREAS: Record<AreaId, AreaDef> = {
   PRODUCT_ROOM: {
@@ -31,7 +46,8 @@ export const AREAS: Record<AreaId, AreaDef> = {
     size: [10, 8],
     color: '#f59e0b',
     lane: 'TOP',
-    walls: ['W', 'E'],
+    walls: ['W', 'E', 'S'],
+    door: { side: 'S', x: -10, width: DOOR_WIDTH },
   },
   MEETING_ROOM: {
     id: 'MEETING_ROOM',
@@ -40,7 +56,8 @@ export const AREAS: Record<AreaId, AreaDef> = {
     size: [8, 8],
     color: '#60a5fa',
     lane: 'TOP',
-    walls: ['W', 'E'],
+    walls: ['W', 'E', 'S'],
+    door: { side: 'S', x: 0, width: DOOR_WIDTH },
   },
   DOCS_ROOM: {
     id: 'DOCS_ROOM',
@@ -49,7 +66,8 @@ export const AREAS: Record<AreaId, AreaDef> = {
     size: [10, 8],
     color: '#a78bfa',
     lane: 'TOP',
-    walls: ['W', 'E'],
+    walls: ['W', 'E', 'S'],
+    door: { side: 'S', x: 10, width: DOOR_WIDTH },
   },
   ENGINEERING: {
     id: 'ENGINEERING',
@@ -59,6 +77,7 @@ export const AREAS: Record<AreaId, AreaDef> = {
     color: '#34d399',
     lane: 'ANY',
     walls: [],
+    door: null,
   },
   QA_AREA: {
     id: 'QA_AREA',
@@ -67,7 +86,8 @@ export const AREAS: Record<AreaId, AreaDef> = {
     size: [10, 5],
     color: '#fb7185',
     lane: 'BOTTOM',
-    walls: ['W', 'E'],
+    walls: ['W', 'E', 'N'],
+    door: { side: 'N', x: -10, width: DOOR_WIDTH },
   },
   BREAK_AREA: {
     id: 'BREAK_AREA',
@@ -76,7 +96,8 @@ export const AREAS: Record<AreaId, AreaDef> = {
     size: [10, 5],
     color: '#f472b6',
     lane: 'BOTTOM',
-    walls: ['W', 'E'],
+    walls: ['W', 'E', 'N'],
+    door: { side: 'N', x: 10, width: DOOR_WIDTH },
   },
 };
 
@@ -179,4 +200,53 @@ export function allocateDesk(area: AreaId, used: Map<AreaId, number>): Vec2 {
   const index = used.get(area) ?? 0;
   used.set(area, index + 1);
   return slots[index % slots.length];
+}
+
+export interface DoorGeometry {
+  x: number;
+  z: number;
+  zInside: number;
+  width: number;
+  insideDirection: 1 | -1;
+}
+
+export function doorGeometry(area: AreaDef): DoorGeometry | null {
+  if (!area.door) return null;
+  const [, cz] = area.center;
+  const depth = area.size[1];
+  const south = area.door.side === 'S';
+  const insideDirection = south ? -1 : 1;
+  const z = south ? cz + depth / 2 : cz - depth / 2;
+  return {
+    x: area.door.x,
+    z,
+    zInside: z + insideDirection * DOOR_INSET,
+    width: area.door.width,
+    insideDirection,
+  };
+}
+
+export function wallRuns(area: AreaDef): WallRun[] {
+  const [cx, cz] = area.center;
+  const [width, depth] = area.size;
+  const left = cx - width / 2;
+  const right = cx + width / 2;
+  const north = cz - depth / 2;
+  const south = cz + depth / 2;
+  const runs: WallRun[] = [];
+
+  const horizontal = (side: 'N' | 'S', z: number) => {
+    if (area.door && area.door.side === side) {
+      runs.push({ from: [left, z], to: [area.door.x - area.door.width / 2, z] });
+      runs.push({ from: [area.door.x + area.door.width / 2, z], to: [right, z] });
+    } else {
+      runs.push({ from: [left, z], to: [right, z] });
+    }
+  };
+
+  if (area.walls.includes('W')) runs.push({ from: [left, north], to: [left, south] });
+  if (area.walls.includes('E')) runs.push({ from: [right, north], to: [right, south] });
+  if (area.walls.includes('N')) horizontal('N', north);
+  if (area.walls.includes('S')) horizontal('S', south);
+  return runs;
 }
